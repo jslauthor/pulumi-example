@@ -1,0 +1,105 @@
+{
+    "version": 3,
+    "deployment": {
+        "manifest": {
+            "time": "2021-02-04T09:38:16.379547-08:00",
+            "magic": "f3cf236541632f4cc99305f61d1209eb1c1e39e679ca2ea95726ab817299530a",
+            "version": "v2.19.0"
+        },
+        "secrets_providers": {
+            "type": "service",
+            "state": {
+                "url": "https://api.pulumi.com",
+                "owner": "jslauthor",
+                "project": "infra-local",
+                "stack": "dev"
+            }
+        },
+        "resources": [
+            {
+                "urn": "urn:pulumi:dev::infra-local::pulumi:pulumi:Stack::infra-local-dev",
+                "custom": false,
+                "type": "pulumi:pulumi:Stack",
+                "outputs": {
+                    "MATERIALIZE_URL": "localhost:6875"
+                }
+            },
+            {
+                "urn": "urn:pulumi:dev::infra-local::pulumi:providers:docker::default",
+                "custom": true,
+                "id": "10c39712-dbb0-4f77-92d8-228ee756a6bc",
+                "type": "pulumi:providers:docker",
+                "inputs": {
+                    "version": "2.8.0"
+                },
+                "outputs": {
+                    "version": "2.8.0"
+                }
+            },
+            {
+                "urn": "urn:pulumi:dev::infra-local::docker:index/remoteImage:RemoteImage::mtx-image",
+                "custom": true,
+                "id": "sha256:3a8aa9e7a183836a1345546a04dd713fcd698f25537ec33ed87f1ee5ea9564a1materialize/materialized:v0.6.1",
+                "type": "docker:index/remoteImage:RemoteImage",
+                "inputs": {
+                    "__defaults": [],
+                    "keepLocally": true,
+                    "name": "materialize/materialized:v0.6.1"
+                },
+                "outputs": {
+                    "id": "sha256:3a8aa9e7a183836a1345546a04dd713fcd698f25537ec33ed87f1ee5ea9564a1materialize/materialized:v0.6.1",
+                    "keepLocally": true,
+                    "latest": "sha256:3a8aa9e7a183836a1345546a04dd713fcd698f25537ec33ed87f1ee5ea9564a1",
+                    "name": "materialize/materialized:v0.6.1"
+                },
+                "parent": "urn:pulumi:dev::infra-local::pulumi:pulumi:Stack::infra-local-dev",
+                "provider": "urn:pulumi:dev::infra-local::pulumi:providers:docker::default::10c39712-dbb0-4f77-92d8-228ee756a6bc",
+                "propertyDependencies": {
+                    "keepLocally": [],
+                    "name": []
+                }
+            },
+            {
+                "urn": "urn:pulumi:dev::infra-local::docker:index/network:Network::net",
+                "custom": true,
+                "id": "ac48e46a19cf529aa3d60bd0790a7a0132721f9ecdf5ab45201f6ce787971e0b",
+                "type": "docker:index/network:Network",
+                "inputs": {
+                    "__defaults": [
+                        "ipamDriver",
+                        "name"
+                    ],
+                    "ipamDriver": "default",
+                    "name": "net-f820938"
+                },
+                "outputs": {
+                    "__meta": "{\"schema_version\":\"1\"}",
+                    "attachable": false,
+                    "driver": "bridge",
+                    "id": "ac48e46a19cf529aa3d60bd0790a7a0132721f9ecdf5ab45201f6ce787971e0b",
+                    "ingress": false,
+                    "internal": false,
+                    "ipamConfigs": [
+                        {
+                            "auxAddress": {},
+                            "gateway": "172.20.0.1",
+                            "ipRange": "",
+                            "subnet": "172.20.0.0/16"
+                        }
+                    ],
+                    "ipamDriver": "default",
+                    "ipv6": false,
+                    "labels": [],
+                    "name": "net-f820938",
+                    "options": {},
+                    "scope": "local"
+                },
+                "parent": "urn:pulumi:dev::infra-local::pulumi:pulumi:Stack::infra-local-dev",
+                "provider": "urn:pulumi:dev::infra-local::pulumi:providers:docker::default::10c39712-dbb0-4f77-92d8-228ee756a6bc"
+            }
+        ],
+        "pending_operations": [
+            
+        ]
+    }
+}

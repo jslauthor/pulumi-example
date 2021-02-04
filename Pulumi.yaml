@@ -1,0 +1,3 @@
+name: infra-local
+runtime: go
+description: A demonstration of using docker and pulumi for local development
