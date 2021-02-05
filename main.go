@@ -123,35 +123,12 @@ func main() {
 
 					pulumi.String(fmt.Sprintf("KAFKA_LISTENERS=PLAINTEXT://:%d", port)),
 					pulumi.String(fmt.Sprintf("KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:%d", port)),
-					// pulumi.String(fmt.Sprintf("KAFKA_CFG_ADVERTISED_LISTENERS=INTERNAL://%s:%d,CLIENT://%s:%d", pulumiName, port+1, pulumiName, port)),
-					// pulumi.String("KAFKA_CFG_INTER_BROKER_LISTENER_NAME=INTERNAL"),
-					// pulumi.String("KAFKA_CFG_SASL_ENABLED_MECHANISMS=PLAIN"),
-					// pulumi.String("KAFKA_CFG_SASL_MECHANISM_INTER_BROKER_PROTOCOL=PLAIN"),
 
 					// We don't care if the brokers don't use SSL/auth to connect to Zookeeper
 					// since MSK abstracts that away in production (no need to replicate it locally)
 					pulumi.String("KAFKA_CFG_ZOOKEEPER_CONNECT=zk-container-pulumi:2181"), // relies on the docker network
 					pulumi.String("ALLOW_PLAINTEXT_LISTENER=yes"),                         // no auth at all
-
-					// Login setup
-					// pulumi.String("KAFKA_CFG_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM=''"),
-					// pulumi.String("KAFKA_CLIENT_USER=pulumiLocal"),
-					// pulumi.String("KAFKA_CLIENT_PASSWORD=m$lk#421jas!vd3d4"),
-					// pulumi.String("KAFKA_CERTIFICATE_PASSWORD=hfB2290XZdm&$"),
-					// pulumi.String("KAFKA_CFG_TLS_TYPE=JKS"),
 				},
-				// Volumes: docker.ContainerVolumeArray{
-				// 	docker.ContainerVolumeArgs{
-				// 		HostPath:      pulumi.String(filepath.Join(path, "/secrets/keystore2/kafka.keystore.jks")),
-				// 		ContainerPath: pulumi.String("/opt/bitnami/kafka/config/certs/kafka.keystore.jks"),
-				// 		ReadOnly:      pulumi.Bool(true),
-				// 	},
-				// 	docker.ContainerVolumeArgs{
-				// 		HostPath:      pulumi.String(filepath.Join(path, "/secrets/truststore2/kafka.truststore.jks")),
-				// 		ContainerPath: pulumi.String("/opt/bitnami/kafka/config/certs/kafka.truststore.jks"),
-				// 		ReadOnly:      pulumi.Bool(true),
-				// 	},
-				// },
 			}, pulumi.DependsOn([]pulumi.Resource{zookeeperContainer}))
 		}
 
@@ -159,10 +136,10 @@ func main() {
 		_, err = createKakfaContainer(1, 9092)
 
 		// // Create second Kafka Broker
-		// _, err = createKakfaContainer(2, 9093)
+		_, err = createKakfaContainer(2, 9093)
 
 		// // Create the third Kafka Broker
-		// _, err = createKakfaContainer(3, 9094)
+		_, err = createKakfaContainer(3, 9094)
 
 		ctx.Export("MATERIALIZE_URL", pulumi.String("localhost:6875"))
 
