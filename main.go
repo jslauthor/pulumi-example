@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/pulumi/pulumi-docker/sdk/v2/go/docker"
 	"github.com/pulumi/pulumi/sdk/v2/go/pulumi"
@@ -98,12 +95,10 @@ func main() {
 			},
 		})
 
-		path, err := os.Getwd()
-
 		// Create a utility function to generate Kafka brokers
 		createKakfaContainer := func(brokerId uint8, port uint16) (*docker.Container, error) {
 			pulumiName := fmt.Sprintf("kafka-broker%d-container", brokerId)
-			log.Print(pulumi.String(filepath.Join(path, "/secrets/keystore/kafka.keystore.jks")))
+
 			return docker.NewContainer(ctx, pulumiName, &docker.ContainerArgs{
 				Name:  pulumi.String(pulumiName),
 				Image: kafkaImage.Name,
@@ -121,13 +116,17 @@ func main() {
 				Envs: pulumi.StringArray{
 					pulumi.String(fmt.Sprintf("KAFKA_BROKER_ID=%d", brokerId)),
 
-					pulumi.String(fmt.Sprintf("KAFKA_LISTENERS=PLAINTEXT://:%d", port)),
-					pulumi.String(fmt.Sprintf("KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:%d", port)),
-
 					// We don't care if the brokers don't use SSL/auth to connect to Zookeeper
 					// since MSK abstracts that away in production (no need to replicate it locally)
 					pulumi.String("KAFKA_CFG_ZOOKEEPER_CONNECT=zk-container-pulumi:2181"), // relies on the docker network
-					pulumi.String("ALLOW_PLAINTEXT_LISTENER=yes"),                         // no auth at all
+					pulumi.String("ALLOW_PLAINTEXT_LISTENER=yes"),
+
+					// Set up internal (other kf brokers) vs external (app servers)
+					// No auth to keep things simple
+					pulumi.String(fmt.Sprintf("KAFKA_LISTENERS=INTERNAL://%s:9088,EXTERNAL://:%d", pulumiName, port)),
+					pulumi.String(fmt.Sprintf("KAFKA_ADVERTISED_LISTENERS=INTERNAL://%s:9088,EXTERNAL://localhost:%d", pulumiName, port)),
+					pulumi.String("KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL"),
+					pulumi.String("KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"),
 				},
 			}, pulumi.DependsOn([]pulumi.Resource{zookeeperContainer}))
 		}
@@ -142,6 +141,7 @@ func main() {
 		_, err = createKakfaContainer(3, 9094)
 
 		ctx.Export("MATERIALIZE_URL", pulumi.String("localhost:6875"))
+		ctx.Export("KAFKA_BROKERS", pulumi.String("localhost:9092,localhost:9093,localhost:9094"))
 
 		return nil
 	})
