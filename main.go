@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/jslauthor/infra/pkg/kafka"
 	"github.com/pulumi/pulumi-docker/sdk/v2/go/docker"
 	"github.com/pulumi/pulumi/sdk/v2/go/pulumi"
 )
@@ -20,36 +21,36 @@ func main() {
 		 */
 
 		// Retrieve Materialize image
-		mtzImage, err := docker.NewRemoteImage(ctx, "mtz-image", &docker.RemoteImageArgs{
-			Name:        pulumi.String("materialize/materialized:v0.6.1"),
-			KeepLocally: pulumi.Bool(true),
-		})
-		if err != nil {
-			return err
-		}
+		// mtzImage, err := docker.NewRemoteImage(ctx, "mtz-image", &docker.RemoteImageArgs{
+		// 	Name:        pulumi.String("materialize/materialized:v0.6.1"),
+		// 	KeepLocally: pulumi.Bool(true),
+		// })
+		// if err != nil {
+		// 	return err
+		// }
 
-		// Create container and start it
-		_, err = docker.NewContainer(ctx, "mtz-container", &docker.ContainerArgs{
-			Name:  pulumi.String("mtz-container-pulumi"),
-			Image: mtzImage.Name,
-			NetworksAdvanced: docker.ContainerNetworksAdvancedArray{
-				docker.ContainerNetworksAdvancedArgs{Name: network.Name},
-			},
-			Restart: pulumi.String("on-failure"),
-			Ports: docker.ContainerPortArray{
-				docker.ContainerPortArgs{
-					Internal: pulumi.Int(6875),
-					External: pulumi.Int(6875),
-				},
-			},
-			Command: pulumi.StringArray{
-				pulumi.String("-w"), // workers
-				pulumi.String("1"),
-			},
-		})
-		if err != nil {
-			return err
-		}
+		// // Create container and start it
+		// _, err = docker.NewContainer(ctx, "mtz-container", &docker.ContainerArgs{
+		// 	Name:  pulumi.String("mtz-container-pulumi"),
+		// 	Image: mtzImage.Name,
+		// 	NetworksAdvanced: docker.ContainerNetworksAdvancedArray{
+		// 		docker.ContainerNetworksAdvancedArgs{Name: network.Name},
+		// 	},
+		// 	Restart: pulumi.String("on-failure"),
+		// 	Ports: docker.ContainerPortArray{
+		// 		docker.ContainerPortArgs{
+		// 			Internal: pulumi.Int(6875),
+		// 			External: pulumi.Int(6875),
+		// 		},
+		// 	},
+		// 	Command: pulumi.StringArray{
+		// 		pulumi.String("-w"), // workers
+		// 		pulumi.String("1"),
+		// 	},
+		// })
+		// if err != nil {
+		// 	return err
+		// }
 
 		/*
 		** Set up two Kafka brokers + Zookeeper
@@ -121,7 +122,7 @@ func main() {
 					pulumi.String("KAFKA_CFG_ZOOKEEPER_CONNECT=zk-container-pulumi:2181"), // relies on the docker network
 					pulumi.String("ALLOW_PLAINTEXT_LISTENER=yes"),
 
-					// Set up internal (other kf brokers) vs external (app servers)
+					// Set up internal (other kf brokers) vs external (app servers) listeners
 					// No auth to keep things simple
 					pulumi.String(fmt.Sprintf("KAFKA_LISTENERS=INTERNAL://%s:9088,EXTERNAL://:%d", pulumiName, port)),
 					pulumi.String(fmt.Sprintf("KAFKA_ADVERTISED_LISTENERS=INTERNAL://%s:9088,EXTERNAL://localhost:%d", pulumiName, port)),
@@ -132,15 +133,65 @@ func main() {
 		}
 
 		// Create first Kafka Broker
-		_, err = createKakfaContainer(1, 9092)
+		kafka1Broker, err := createKakfaContainer(1, 9092)
 
 		// // Create second Kafka Broker
-		_, err = createKakfaContainer(2, 9093)
+		kafka2Broker, err := createKakfaContainer(2, 9093)
 
 		// // Create the third Kafka Broker
-		_, err = createKakfaContainer(3, 9094)
+		kafka3Broker, err := createKakfaContainer(3, 9094)
 
-		ctx.Export("MATERIALIZE_URL", pulumi.String("localhost:6875"))
+		kafka1Broker.IpAddress.ApplyString(func(ip string) (string, error) {
+			/*
+			** Configure Kafka Topics
+			 */
+
+			err = kafka.ConfigureKafkaTopics(
+				ctx,
+				"localhost:9092,localhost:9093,localhost:9094",
+				"PLAINTEXT",
+				nil,
+			)
+			return ip, err
+		})
+
+		/* Set up Confluent Inc's Kafka REST Proxy */
+
+		restProxyImage, err := docker.NewRemoteImage(ctx, "kafka-rest-proxy", &docker.RemoteImageArgs{
+			Name:        pulumi.String("confluentinc/cp-kafka-rest"),
+			KeepLocally: pulumi.Bool(true),
+		})
+		if err != nil {
+			return err
+		}
+
+		_, err = docker.NewContainer(ctx, "kafka-rest-proxy-container", &docker.ContainerArgs{
+			Name:  pulumi.String("kafka-rest-proxy-pulumi"),
+			Image: restProxyImage.Name,
+			NetworksAdvanced: docker.ContainerNetworksAdvancedArray{
+				docker.ContainerNetworksAdvancedArgs{Name: network.Name},
+			},
+			Restart: pulumi.String("on-failure"),
+			Ports: docker.ContainerPortArray{
+				docker.ContainerPortArgs{
+					Internal: pulumi.Int(8082),
+					External: pulumi.Int(8082),
+				},
+			},
+			Envs: pulumi.StringArray{
+				// pulumi.String("KAFKA_REST_ZOOKEEPER_CONNECT=PLAINTEXT://zk-container-pulumi:2181"),
+				// pulumi.String("KAFKA_REST_HOST_NAME=localhost"),
+				pulumi.String("KAFKA_REST_ID=1"),
+				pulumi.String("KAFKA_REST_BOOTSTRAP_SERVERS=PLAINTEXT://kafka-broker1-container:9088"),
+				pulumi.String("KAFKA_REST_LISTENERS=http://localhost:8082"),
+			},
+		}, pulumi.DependsOn([]pulumi.Resource{zookeeperContainer, kafka1Broker, kafka2Broker, kafka3Broker}))
+
+		/*
+		** Export variables for use in .env and secrets
+		 */
+
+		// ctx.Export("MATERIALIZE_URL", pulumi.String("localhost:6875"))
 		ctx.Export("KAFKA_BROKERS", pulumi.String("localhost:9092,localhost:9093,localhost:9094"))
 
 		return nil
