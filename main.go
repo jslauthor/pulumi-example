@@ -183,7 +183,7 @@ func main() {
 				// pulumi.String("KAFKA_REST_HOST_NAME=localhost"),
 				pulumi.String("KAFKA_REST_ID=1"),
 				pulumi.String("KAFKA_REST_BOOTSTRAP_SERVERS=PLAINTEXT://kafka-broker1-container:9088"),
-				pulumi.String("KAFKA_REST_LISTENERS=http://localhost:8082"),
+				// pulumi.String("KAFKA_REST_LISTENERS=http://localhost:8082"),
 			},
 		}, pulumi.DependsOn([]pulumi.Resource{zookeeperContainer, kafka1Broker, kafka2Broker, kafka3Broker}))
 
